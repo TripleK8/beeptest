@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Import jsPDF Library for PDF generation (kept but no longer used for core export) -->
+    <!-- Import jsPDF Library for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
@@ -444,54 +444,9 @@
             color: #333;
         }
         
-        /* NEW: Print Media Queries for Ctrl+P like output */
-        @media print {
-            body {
-                background: none;
-                margin: 0;
-                padding: 0;
-            }
-            .container {
-                box-shadow: none;
-                padding: 10mm; /* Add internal padding for printing */
-                width: auto;
-                max-width: none;
-            }
-            /* Hide non-essential interactive elements */
-            .settings-group,
-            .set-input-group input, /* Hide only the input box, keep the label */
-            .score-buttons-container,
-            .button-group,
-            .progress-bar,
-            .next-beep-box,
-            #ai-modal {
-                display: none !important;
-            }
-            /* Adjust layout for print */
-            .display-grid {
-                grid-template-columns: repeat(5, 1fr) !important; /* Force 5 columns */
-                gap: 5px;
-                margin-bottom: 20px;
-            }
-            .stat-box {
-                border: 1px solid #ccc;
-                padding: 10px;
-                background-color: #fff;
-            }
-            /* Ensure results list looks clean */
-            .results-list li {
-                border-bottom: 1px solid #ccc;
-                page-break-inside: avoid; /* Avoid breaking list items across pages */
-            }
-            h1 {
-                margin-top: 0;
-            }
-            /* Ensure the display elements retain their styles */
-            .score-display {
-                box-shadow: none;
-                border: 1px solid #c8e6c9;
-            }
-        }
+        /* Print Media Queries (Removed for Direct Save, as requested by user)
+        @media print { ... }
+        */
     </style>
 </head>
 <body>
@@ -1199,18 +1154,84 @@
             closeModal(); 
         }
         
-        // --- PDF Export Logic (UPDATED TO USE window.print()) ---
+        // --- PDF Export Logic (UPDATED TO use jsPDF for direct save) ---
         function exportToPDF() {
-             if (Object.keys(testSets.data).length === 0) {
+            if (Object.keys(testSets.data).length === 0) {
                  showModal("ไม่พบข้อมูลคะแนนที่บันทึกไว้ กรุณาบันทึกผลการทดสอบก่อนส่งออกเป็น PDF", false);
+                return;
+            }
+            
+            // Check if jsPDF is loaded
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                 showModal("กำลังโหลดไลบรารีส่งออก PDF... กรุณาลองใหม่อีกครั้งใน 2-3 วินาที", false);
                  return;
-             }
-             
-             // Calls the native browser print/save dialog (like Ctrl+P)
-             window.print();
-             
-             // Note: The custom filename logic is no longer possible with window.print(),
-             // but the result will accurately reflect the screen content for easy saving.
+            }
+
+            const { jsPDF } = window.jspdf;
+            
+            const currentSet = testSets.current; // Get current set number
+            const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            
+            // Filename format: PACER_Set_[Current Set]_[Current Date].pdf
+            const filename = `PACER_Set_${currentSet}_${today}.pdf`; 
+
+            const doc = new jsPDF();
+            let y = 10;
+            const lineHeight = 7;
+            const padding = 10;
+            
+            // Title
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text("PACER Test Score Summary (บันทึกผลการทดสอบ)", padding, y);
+            y += lineHeight;
+
+            // Header details
+            doc.setFontSize(10);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`วันที่ส่งออก: ${today}`, padding, y);
+            doc.text(`จำนวนชุดการทดสอบทั้งหมด: ${testSets.total}`, 100, y); 
+            y += lineHeight * 2;
+
+            // Score data processing
+            doc.setFontSize(10);
+            let lastSet = 0;
+            const scores = Object.keys(testSets.data)
+                .map(key => ({ key, data: testSets.data[key] }))
+                .sort((a, b) => {
+                    const [setA, idA] = a.key.split('-').map(Number);
+                    const [setB, idB] = b.key.split('-').map(Number);
+                    if (setA !== setB) return setA - setB;
+                    return idA - idB;
+                });
+
+            scores.forEach(({ data }) => {
+                if (y > 280) { 
+                    doc.addPage();
+                    y = padding;
+                    doc.setFont("Helvetica", "normal");
+                    doc.setFontSize(10);
+                    lastSet = 0; 
+                }
+
+                if (data.set !== lastSet) {
+                    y += lineHeight;
+                    doc.setFont("Helvetica", "bold");
+                    doc.setFontSize(12);
+                    doc.text(`--- ชุดการทดสอบที่ ${data.set} (Set ${data.set}/${testSets.total}) ---`, padding, y);
+                    y += lineHeight;
+                    lastSet = data.set;
+                    doc.setFont("Helvetica", "normal");
+                    doc.setFontSize(10);
+                }
+
+                const scoreLine = `Runner #${data.runnerId} (Set ${data.set}): ${data.levelLap} | Total Laps: ${data.score} | Distance: ${data.distance} m | Time: ${data.time}`;
+                
+                doc.text(scoreLine, padding, y);
+                y += lineHeight;
+            });
+
+            doc.save(filename); // Direct file save
         }
 
         // --- Data Definitions ---
