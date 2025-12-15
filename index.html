@@ -739,6 +739,18 @@
         let audioCtx = null;
         const ADMIN_PASSWORD = "1234";
 
+        // --- Prevent Unload/Refresh ---
+        window.addEventListener('beforeunload', function (e) {
+            if (isRunning || isPaused) {
+                // แสดงข้อความเตือนหากผู้ใช้พยายามออกจากหน้าจอขณะกำลังวิ่ง
+                const message = 'การทดสอบ PACER กำลังดำเนินอยู่ การรีเฟรช/ปิดหน้าต่างจะทำให้ข้อมูลปัจจุบันสูญหาย คุณแน่ใจหรือไม่?';
+                e.preventDefault(); 
+                e.returnValue = message; 
+                return message;
+            }
+        });
+        // ------------------------------
+
 
         function initAudio() {
              if (!audioCtx) {
@@ -1203,9 +1215,8 @@
         }
 
         function nextShuttle() {
-            // *** CORE LOGIC FOR LAP COUNTING ***
-            // When this function runs, the time for the PREVIOUS shuttle has run out (i.e., this is the point of the BEEP).
-            totalCumulativeLaps++; // <--- INCREMENTS HERE (at the BEEP)
+            // *** CORE LOGIC FOR LAP COUNTING: INCREMENTS HERE (at the BEEP) ***
+            totalCumulativeLaps++; 
             // **********************************
 
             const currentLevelData = pacerData[currentLevelIndex];
