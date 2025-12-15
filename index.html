@@ -201,8 +201,26 @@
             color: var(--text-main);
         }
 
-        #cum-display { color: var(--highlight-color); }
-        #dist-display { color: var(--accent-color); }
+        /* --- CUMULATIVE LAPS EMPHASIS --- */
+        #cum-stat-box {
+            grid-column: 1 / -1; /* Span full width on all devices */
+            background-color: var(--highlight-color); /* Orange color */
+            color: white;
+            padding: 25px;
+            border: 3px solid #f9fafb; 
+        }
+        #cum-stat-box .stat-label {
+            font-size: 14px;
+            color: white;
+            font-weight: 700;
+        }
+        #cum-display { 
+            color: white !important; /* Force white text */
+            font-size: 56px; /* Huge font size */
+        }
+        /* --- END CUMULATIVE LAPS EMPHASIS --- */
+
+        #dist-display { color: var(--accent-color); } 
         #speed-display { color: var(--speed-color); }
 
         .timer-display {
@@ -595,23 +613,28 @@
         </div>
 
         <div class="display-grid">
+            <!-- 1. CUMULATIVE LAPS (เน้นเป็นพิเศษ) -->
+            <div class="stat-box" id="cum-stat-box">
+                <div class="stat-label">Cumulative Laps (รวมรอบ)</div>
+                <div class="stat-value" id="cum-display">0</div> 
+            </div>
+            <!-- 2. Level -->
             <div class="stat-box">
                 <div class="stat-label">Level</div>
                 <div class="stat-value" id="level-display">1</div>
             </div>
+            <!-- 3. Laps -->
             <div class="stat-box">
                 <div class="stat-label">Laps</div>
                 <div class="stat-value" id="shuttle-display">1</div>
             </div>
+            <!-- 4. Speed -->
             <div class="stat-box">
                 <div class="stat-label">Speed</div>
                 <div class="stat-value" id="speed-display">8.5</div>
                 <div class="stat-label" style="font-size: 10px; margin-top: -5px;">km/h</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">Cum. Laps</div>
-                <div class="stat-value" id="cum-display">0</div> 
-            </div>
+            <!-- 5. Distance (m) -->
             <div class="stat-box">
                 <div class="stat-label">Distance (m)</div>
                 <div class="stat-value" id="dist-display">0</div>
@@ -856,7 +879,7 @@
 
 
         function finishTestAndAdvance() {
-            if (!isRunning && !isPaused) return; 
+            if (!isRunning || isPaused) return; // Only advance if running (or paused, if user hits manual advance)
             
             exportToPDF();
             finishTest(true); 
@@ -868,6 +891,7 @@
             for (let i = pacerData.length - 1; i >= 0; i--) {
                 const prevCum = (i > 0) ? pacerData[i-1].cumulative : 0;
                 
+                // If the completed laps is greater than the cumulative laps of the PREVIOUS level
                 if (totalCompleted > prevCum) {
                     const level = pacerData[i].level;
                     const lap = totalCompleted - prevCum;
@@ -1096,7 +1120,7 @@
                 if (countdown > 0) {
                     document.getElementById('status-text').innerText = `Starting in ${countdown}...`;
                     
-                    if (countdown === 1) { // NEW: Add tone for the last second
+                    if (countdown === 1) { // Add tone for the last second
                         const thaiNumbers = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า"];
                         speak(thaiNumbers[countdown]);
                         playTone(); 
@@ -1179,8 +1203,11 @@
         }
 
         function nextShuttle() {
-            totalCumulativeLaps++; 
-            
+            // *** CORE LOGIC FOR LAP COUNTING ***
+            // When this function runs, the time for the PREVIOUS shuttle has run out (i.e., this is the point of the BEEP).
+            totalCumulativeLaps++; // <--- INCREMENTS HERE (at the BEEP)
+            // **********************************
+
             const currentLevelData = pacerData[currentLevelIndex];
 
             currentShuttleCount++;
@@ -1416,34 +1443,30 @@
         }
 
         const pacerData = [
-            { level: 1,  shuttles: 7,  seconds: 8.47, speed: 8.5, cumulative: 0 }, // Init cumulative to 0, it will be calculated below
-            { level: 2,  shuttles: 8,  seconds: 8.00, speed: 9.0, cumulative: 0 },
-            { level: 3,  shuttles: 8,  seconds: 7.58, speed: 9.5, cumulative: 0 },
-            { level: 4,  shuttles: 8,  seconds: 7.20, speed: 10.0, cumulative: 0 },
-            { level: 5,  shuttles: 9,  seconds: 6.86, speed: 10.5, cumulative: 0 },
-            { level: 6,  shuttles: 9,  seconds: 6.55, speed: 11.0, cumulative: 0 },
-            { level: 7,  shuttles: 10, seconds: 6.26, speed: 11.5, cumulative: 0 },
-            { level: 8,  shuttles: 10, seconds: 6.00, speed: 12.0, cumulative: 0 },
-            { level: 9,  shuttles: 10, seconds: 5.76, speed: 12.5, cumulative: 0 },
-            { level: 10, shuttles: 11, seconds: 5.54, speed: 13.0, cumulative: 0 },
-            { level: 11, shuttles: 11, seconds: 5.33, speed: 13.5, cumulative: 0 },
-            { level: 12, shuttles: 12, seconds: 5.14, speed: 14.0, cumulative: 0 },
-            { level: 13, shuttles: 12, seconds: 4.97, speed: 14.5, cumulative: 0 },
-            { level: 14, shuttles: 13, seconds: 4.80, speed: 15.0, cumulative: 0 },
-            { level: 15, shuttles: 13, seconds: 4.65, speed: 15.5, cumulative: 0 },
-            { level: 16, shuttles: 13, seconds: 4.50, speed: 16.0, cumulative: 0 },
-            { level: 17, shuttles: 14, seconds: 4.36, speed: 16.5, cumulative: 0 },
-            { level: 18, shuttles: 14, seconds: 4.24, speed: 17.0, cumulative: 0 },
-            { level: 19, shuttles: 15, seconds: 4.11, speed: 17.5, cumulative: 0 },
-            { level: 20, shuttles: 15, seconds: 4.00, speed: 18.0, cumulative: 0 },
-            { level: 21, shuttles: 15, seconds: 3.89, speed: 18.5, cumulative: 0 }
+            // อัปเดตข้อมูล Level, Shuttles และ Cumulative ตามที่ผู้ใช้ระบุ
+            { level: 1,  shuttles: 7,  seconds: 8.47, speed: 8.5, cumulative: 7 },
+            { level: 2,  shuttles: 8,  seconds: 8.00, speed: 9.0, cumulative: 15 },
+            { level: 3,  shuttles: 8,  seconds: 7.58, speed: 9.5, cumulative: 23 },
+            { level: 4,  shuttles: 8,  seconds: 7.20, speed: 10.0, cumulative: 31 },
+            { level: 5,  shuttles: 9,  seconds: 6.86, speed: 10.5, cumulative: 40 },
+            { level: 6,  shuttles: 9,  seconds: 6.55, speed: 11.0, cumulative: 49 },
+            { level: 7,  shuttles: 10, seconds: 6.26, speed: 11.5, cumulative: 59 },
+            { level: 8,  shuttles: 10, seconds: 6.00, speed: 12.0, cumulative: 69 },
+            { level: 9,  shuttles: 10, seconds: 5.76, speed: 12.5, cumulative: 79 },
+            { level: 10, shuttles: 11, seconds: 5.54, speed: 13.0, cumulative: 90 },
+            { level: 11, shuttles: 11, seconds: 5.33, speed: 13.5, cumulative: 101 },
+            { level: 12, shuttles: 12, seconds: 5.14, speed: 14.0, cumulative: 113 },
+            { level: 13, shuttles: 12, seconds: 4.97, speed: 14.5, cumulative: 125 },
+            { level: 14, shuttles: 13, seconds: 4.80, speed: 15.0, cumulative: 138 },
+            { level: 15, shuttles: 13, seconds: 4.65, speed: 15.5, cumulative: 151 },
+            { level: 16, shuttles: 13, seconds: 4.50, speed: 16.0, cumulative: 164 },
+            { level: 17, shuttles: 14, seconds: 4.36, speed: 16.5, cumulative: 178 },
+            { level: 18, shuttles: 14, seconds: 4.24, speed: 17.0, cumulative: 192 },
+            { level: 19, shuttles: 15, seconds: 4.11, speed: 17.5, cumulative: 207 },
+            { level: 20, shuttles: 15, seconds: 4.00, speed: 18.0, cumulative: 222 },
+            { level: 21, shuttles: 15, seconds: 3.89, speed: 18.5, cumulative: 237 }
         ];
 
-        let cumulativeLapsTotalPacer = 0;
-        pacerData.forEach(data => {
-            cumulativeLapsTotalPacer += data.shuttles;
-            data.cumulative = cumulativeLapsTotalPacer;
-        });
         
         window.onload = function() {
             setupRunnerButtons();
