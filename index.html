@@ -89,71 +89,6 @@
             font-weight: 700;
         }
         
-        .set-input-group {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f0f0f0;
-            border-radius: 12px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .set-control-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .set-input-group input {
-            width: 60px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--accent-color);
-        }
-
-        .set-navigator {
-            display: flex;
-            align-items: center;
-            background: white;
-            border-radius: 8px;
-            padding: 5px;
-            border: 1px solid #ccc;
-        }
-
-        .set-nav-btn {
-            background-color: #ecf0f1;
-            border: none;
-            color: var(--text-main);
-            width: 30px;
-            height: 30px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-        .set-nav-btn:hover { background-color: #bdc3c7; }
-        .set-nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .current-set-text {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--highlight-color);
-            margin: 0 15px;
-            min-width: 20px;
-        }
-
         .display-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -329,15 +264,6 @@
             width: 100%;
         }
         
-        .control-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
-            width: 100%;
-            margin-top: 10px;
-        }
-
         button.action-btn {
             background-color: var(--accent-color);
             color: #fff;
@@ -357,18 +283,6 @@
             background-color: #8e44ad;
             box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
         }
-
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            background: #f0f0f0;
-            padding: 8px 15px;
-            border-radius: 20px;
-        }
-        .checkbox-wrapper input { margin-right: 8px; }
 
         .progress-bar {
             width: 100%;
@@ -450,21 +364,6 @@
 
         <h1>20m-SRT (Shuttle Run Test)</h1>
         
-        <div class="set-input-group">
-            <div class="set-control-item">
-                <label for="totalSets">จำนวนชุดทั้งหมด:</label>
-                <input type="number" id="totalSets" value="1" min="1" onchange="updateTotalSets(this.value); toggleButtonsState();">
-            </div>
-            <div class="set-control-item">
-                <label>ชุดปัจจุบัน:</label>
-                <div class="set-navigator">
-                    <button class="set-nav-btn" id="prev-set-btn" onclick="changeSet(-1)">&#9664;</button>
-                    <span id="currentSetDisplay" class="current-set-text">1</span>
-                    <button class="set-nav-btn" id="next-set-btn-nav" onclick="changeSet(1)">&#9654;</button>
-                </div>
-            </div>
-        </div>
-
         <div class="display-grid">
             <div class="stat-box" id="cum-stat-box">
                 <div class="stat-label">Cumulative Laps (รวมรอบ)</div>
@@ -511,14 +410,7 @@
             <div class="progress-fill" id="progress-fill"></div>
         </div>
 
-        <div class="control-row">
-             <div class="export-options" id="export-options-container" style="display: none;">
-                <label class="checkbox-wrapper">
-                    <input type="checkbox" id="exportAllSets" checked>
-                    รวมผลทุกชุดในไฟล์เดียว
-                </label>
-            </div>
-        </div>
+        <!-- ลบส่วน Checkbox รวมผลออกแล้ว -->
         
         <div class="button-group">
             <button id="start-btn" class="action-btn" onclick="startTest()">START TEST</button>
@@ -558,10 +450,8 @@
 
         function initAudio() {
             if (!audioCtx) {
-                // ไม่กำหนด sampleRate เพื่อให้ยืดหยุ่นกับ Bluetooth
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // Monitor State Changes
                 audioCtx.onstatechange = () => {
                     if (audioCtx.state === 'running') {
                         updateAudioStatus("📡 Audio Active (Bluetooth Ready)", "ready");
@@ -578,10 +468,9 @@
             updateAudioStatus("📡 Audio Active (Bluetooth Ready)", "ready");
         }
 
-        // --- CORE BLUETOOTH FIX: Device Change Listener ---
         if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
             navigator.mediaDevices.addEventListener('devicechange', async () => {
-                console.log("Device change detected (Bluetooth connected/disconnected). Re-syncing...");
+                console.log("Device change detected. Re-syncing...");
                 updateAudioStatus("🔄 Re-syncing Audio Device...", "error");
                 
                 if (audioCtx) {
@@ -589,7 +478,6 @@
                         if (audioCtx.state !== 'running') {
                             await audioCtx.resume();
                         }
-                        // เล่นเสียงสั้นๆ เพื่อ "ปลุก" audio context ในอุปกรณ์ใหม่ (เสียง 500Hz)
                         if (isRunning) playTone(0.1, 500); 
                     } catch (e) {
                         console.error("Audio resume failed:", e);
@@ -598,10 +486,9 @@
             });
         }
 
-        // ปรับ Default Frequency เป็น 500Hz ตามคำสั่งล่าสุด
+        // 500Hz Beep
         function playTone(duration = 0.7, freq = 500) {
             if (!audioCtx) initAudio();
-            // Force Resume if suspended (common in Bluetooth wakeup)
             if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') {
                 audioCtx.resume();
             }
@@ -612,10 +499,9 @@
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
-            osc.type = 'sine'; // ใช้ Sine wave 
+            osc.type = 'sine'; 
             osc.frequency.value = freq;
             
-            // Envelope เพื่อลดเสียง 'คลิก'
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
             gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
@@ -635,8 +521,6 @@
 
         function speak(text) {
              if (!('speechSynthesis' in window)) return;
-             // Don't cancel immediately if tone is playing, wait slightly? 
-             // Actually cancel is good to stop previous overlap
              speechSynthesis.cancel(); 
              const u = new SpeechSynthesisUtterance(text);
              u.lang = 'th-TH';
@@ -731,7 +615,6 @@
             if (isRunning) return;
             initAudio();
             
-            // ปรับ Countdown เริ่มต้นเป็น 6 เพื่อให้นับ 5 ในวินาทีแรก
             let countdown = 6;
             document.getElementById('status-text').innerText = `Starting...`;
             document.getElementById('start-btn').style.display = 'none';
@@ -740,17 +623,13 @@
                 countdown--;
                 if (countdown > 0) {
                     document.getElementById('status-text').innerText = `Starting in ${countdown}...`;
-                    // Speak countdown numbers 5,4,3,2,1
                     if (countdown <= 5) {
                         const thaiNum = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า"];
                         speak(thaiNum[countdown]);
                     }
-                    // ตัดเสียง beep สั้นๆ ออกตามคำขอ เพื่อให้เหลือแค่เสียงปิ๊บตอนจบ
                 } else {
                     clearInterval(preInterval);
                     document.getElementById('status-text').innerText = "RUN!";
-                    // ตัด speak("เริ่มการทดสอบ") ออก
-                    // เพิ่มเสียงปิ๊บยาวเพื่อเริ่ม (ใช้ความถี่ 500Hz)
                     playTone(1.0, 500); 
                     beginPacerLogic();
                 }
@@ -787,10 +666,10 @@
                 document.getElementById('countdown-display').innerText = remaining.toFixed(2);
                 document.getElementById('progress-fill').style.width = `${(elapsed / shuttleDuration) * 100}%`;
 
-                if (remaining <= 0.05) { // Threshold
+                if (remaining <= 0.05) { 
                     nextShuttle();
                 }
-            }, 20); // 50Hz update
+            }, 20); 
         }
 
         function nextShuttle() {
@@ -800,13 +679,11 @@
 
             if (currentShuttleCount > data.shuttles) {
                 currentLevelIndex++;
-                currentShuttleCount = 1; // Reset to 1 for new level
+                currentShuttleCount = 1; 
                 if (currentLevelIndex >= pacerData.length) {
                     finishTest();
                     return;
                 }
-                // ตัดเสียงพูดแจ้งเตือน Level ออกตามคำขอ
-                // speak(`ระดับ ${pacerData[currentLevelIndex].level} เริ่มแล้ว`);
             }
             
             playTone();
@@ -816,12 +693,11 @@
         function updateDisplay() {
             const data = pacerData[currentLevelIndex];
             document.getElementById('level-display').innerText = data.level;
-            document.getElementById('shuttle-display').innerText = currentShuttleCount; // Show current shuttle (1-based)
+            document.getElementById('shuttle-display').innerText = currentShuttleCount; 
             document.getElementById('speed-display').innerText = data.speed.toFixed(1);
             document.getElementById('cum-display').innerText = totalCumulativeLaps;
             document.getElementById('dist-display').innerText = (totalCumulativeLaps * 20).toLocaleString();
             
-            // MRS Logic
             const mrs = getMaxSpeed(totalCumulativeLaps);
             const scoreStr = getFormattedScore(totalCumulativeLaps);
             document.getElementById('score-text').innerText = `${scoreStr} | MRS: ${mrs.toFixed(1)} km/h | รวม ${totalCumulativeLaps} รอบ`;
@@ -852,7 +728,6 @@
         function finishTest(isManual = false) {
             clearInterval(timerInterval);
             isRunning = false;
-            // ใช้ 500Hz ตามคำสั่ง
             playTone(0.5, 500); playTone(0.5, 500);
             document.getElementById('status-text').innerText = "Test Completed!";
             document.getElementById('start-btn').innerText = "START NEW TEST";
@@ -882,13 +757,12 @@
                     distance: totalCumulativeLaps * 20,
                     time: document.getElementById('total-time').innerText,
                     maxSpeed: getMaxSpeed(totalCumulativeLaps).toFixed(1),
-                    timestamp: Date.now() // เพิ่ม Timestamp สำหรับเรียงลำดับเวลา
+                    timestamp: Date.now() 
                 };
             }
             renderRunnerScores();
         }
 
-        // Helper functions from original code
         function getMaxSpeed(laps) {
             if (laps <= 0) return 0.0;
             let speed = pacerData[0].speed;
@@ -901,7 +775,6 @@
 
         function getFormattedScore(laps) {
             if (laps <= 0) return "Level 1 - Lap 0";
-            // Logic to find exact Level-Lap
             for(let i=pacerData.length-1; i>=0; i--) {
                 const prevCum = i>0 ? pacerData[i-1].cumulative : 0;
                 if(laps > prevCum) {
@@ -915,10 +788,9 @@
             const list = document.getElementById('saved-results-list');
             list.innerHTML = '';
             
-            // Group and Sort by TIMESTAMP (Who came out first) instead of Runner ID
+            // Sort by Timestamp
             let items = Object.values(testSets.data).sort((a,b) => {
                 if(a.set !== b.set) return a.set - b.set;
-                // เรียงตามเวลาที่กดปุ่ม (Timestamp)
                 return a.timestamp - b.timestamp;
             });
 
@@ -967,11 +839,8 @@
             document.getElementById('pause-btn').style.display = isRunning || isPaused ? 'inline-block' : 'none';
             document.getElementById('reset-btn').style.display = (isRunning || isPaused || hasData) ? 'inline-block' : 'none';
             document.getElementById('pdf-export-btn').style.display = hasData ? 'inline-block' : 'none';
-            document.getElementById('export-options-container').style.display = hasData ? 'flex' : 'none';
+            // Removed export options toggle
             document.getElementById('next-set-btn').style.display = (isRunning || isPaused) ? 'inline-block' : 'none';
-            
-            document.getElementById('totalSets').disabled = isRunning;
-            document.querySelectorAll('.set-nav-btn').forEach(b => b.disabled = isRunning);
         }
 
         function performReset(keepScores) {
@@ -985,11 +854,9 @@
             if(!keepScores) {
                 testSets.data = {};
                 testSets.current = 1;
-                document.getElementById('totalSets').value = 1;
-                document.getElementById('currentSetDisplay').innerText = 1;
             }
             renderRunnerScores();
-            updateDisplay(); // Reset display numbers
+            updateDisplay(); 
             document.getElementById('status-text').innerText = "Ready to Start";
             toggleButtonsState();
         }
@@ -1012,9 +879,8 @@
             }
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            const exportAll = document.getElementById('exportAllSets').checked;
+            const exportAll = true; // Default to always export all sets
             
-            // ปรับวันที่เป็น วัน-เดือน-ปี (DD-MM-YYYY)
             const dateObj = new Date();
             const day = String(dateObj.getDate()).padStart(2, '0');
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -1025,16 +891,14 @@
             doc.text("20m-SRT Test Results", 14, 20);
             doc.setFont("Helvetica", "normal");
             doc.setFontSize(10);
-            doc.text(`Date: ${today}`, 14, 26); // แสดงวันที่ใน PDF
+            doc.text(`Date: ${today}`, 14, 26); 
             
             let y = 35;
             let items = Object.values(testSets.data).filter(d => exportAll || d.set === testSets.current);
             
-            // Sort by Timestamp for PDF as well
              items.sort((a,b) => {
                 if(a.set !== b.set) return a.set - b.set;
-                // return a.runnerId - b.runnerId; // OLD
-                return a.timestamp - b.timestamp; // NEW: Chronological
+                return a.timestamp - b.timestamp; 
             });
 
             if(items.length === 0) {
@@ -1057,13 +921,7 @@
                 y += 7;
             });
 
-            // ตั้งชื่อไฟล์เป็น วัน-เดือน-ปี
-            let filename;
-            if (exportAll) {
-                filename = `PACER_AllSets_${today}.pdf`;
-            } else {
-                filename = `PACER_Set_${testSets.current}_${today}.pdf`;
-            }
+            let filename = `PACER_AllSets_${today}.pdf`;
             doc.save(filename);
         }
 
@@ -1071,14 +929,12 @@
             let next = testSets.current + val;
             if (next >= 1 && next <= testSets.total) {
                 testSets.current = next;
-                document.getElementById('currentSetDisplay').innerText = next;
                 renderRunnerScores();
             }
         }
 
         function updateTotalSets(v) { testSets.total = parseInt(v); }
 
-        // Prevent Tab Close
         window.addEventListener('beforeunload', (e) => {
             if (isRunning) {
                 e.preventDefault();
@@ -1088,7 +944,6 @@
 
         window.onload = () => {
             setupRunnerButtons();
-            // Init audio immediately on load if possible, though usually needs user gesture
             updateAudioStatus("💤 Waiting for user interaction...", "ready");
         };
     </script>
