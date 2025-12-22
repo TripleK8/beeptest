@@ -589,8 +589,8 @@
                         if (audioCtx.state !== 'running') {
                             await audioCtx.resume();
                         }
-                        // เล่นเสียงสั้นๆ เพื่อ "ปลุก" audio context ในอุปกรณ์ใหม่ (เสียงทุ้ม 400Hz)
-                        if (isRunning) playTone(0.1, 400); 
+                        // เล่นเสียงสั้นๆ เพื่อ "ปลุก" audio context ในอุปกรณ์ใหม่ (เสียง 500Hz)
+                        if (isRunning) playTone(0.1, 500); 
                     } catch (e) {
                         console.error("Audio resume failed:", e);
                     }
@@ -598,8 +598,8 @@
             });
         }
 
-        // ปรับ Default Frequency เป็น 400Hz (เสียงทุ้ม)
-        function playTone(duration = 0.7, freq = 400) {
+        // ปรับ Default Frequency เป็น 500Hz ตามคำสั่งล่าสุด
+        function playTone(duration = 0.7, freq = 500) {
             if (!audioCtx) initAudio();
             // Force Resume if suspended (common in Bluetooth wakeup)
             if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') {
@@ -612,7 +612,10 @@
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
+            osc.type = 'sine'; // ใช้ Sine wave 
             osc.frequency.value = freq;
+            
+            // Envelope เพื่อลดเสียง 'คลิก'
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
             gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
@@ -747,8 +750,8 @@
                     clearInterval(preInterval);
                     document.getElementById('status-text').innerText = "RUN!";
                     // ตัด speak("เริ่มการทดสอบ") ออก
-                    // เพิ่มเสียงปิ๊บยาวเพื่อเริ่ม (ใช้ความถี่ 400Hz ทุ้ม)
-                    playTone(1.0, 400); 
+                    // เพิ่มเสียงปิ๊บยาวเพื่อเริ่ม (ใช้ความถี่ 500Hz)
+                    playTone(1.0, 500); 
                     beginPacerLogic();
                 }
             }, 1000);
@@ -849,8 +852,8 @@
         function finishTest(isManual = false) {
             clearInterval(timerInterval);
             isRunning = false;
-            // ใช้ 400Hz ทุ้ม
-            playTone(0.5, 400); playTone(0.5, 400);
+            // ใช้ 500Hz ตามคำสั่ง
+            playTone(0.5, 500); playTone(0.5, 500);
             document.getElementById('status-text').innerText = "Test Completed!";
             document.getElementById('start-btn').innerText = "START NEW TEST";
             toggleButtonsState();
@@ -1011,12 +1014,20 @@
             const doc = new jsPDF();
             const exportAll = document.getElementById('exportAllSets').checked;
             
+            // ปรับวันที่เป็น วัน-เดือน-ปี (DD-MM-YYYY)
+            const dateObj = new Date();
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const today = `${day}-${month}-${year}`;
+            
             doc.setFont("Helvetica", "bold");
             doc.text("20m-SRT Test Results", 14, 20);
             doc.setFont("Helvetica", "normal");
             doc.setFontSize(10);
+            doc.text(`Date: ${today}`, 14, 26); // แสดงวันที่ใน PDF
             
-            let y = 30;
+            let y = 35;
             let items = Object.values(testSets.data).filter(d => exportAll || d.set === testSets.current);
             
             // Sort by Timestamp for PDF as well
@@ -1045,7 +1056,15 @@
                 doc.text(`Runner #${s.runnerId}: ${s.score} laps (${s.distance}m) - MRS: ${s.maxSpeed} km/h - Time: ${s.time}`, 14, y);
                 y += 7;
             });
-            doc.save("srt_results.pdf");
+
+            // ตั้งชื่อไฟล์เป็น วัน-เดือน-ปี
+            let filename;
+            if (exportAll) {
+                filename = `PACER_AllSets_${today}.pdf`;
+            } else {
+                filename = `PACER_Set_${testSets.current}_${today}.pdf`;
+            }
+            doc.save(filename);
         }
 
         function changeSet(val) {
