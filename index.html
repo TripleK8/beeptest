@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>20m-SRT - Bluetooth Stable</title>
+    <title>20m-SRT - Office Ready</title>
     
-    <!-- PDF Library -->
+    <!-- PDF Library (Online) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> 
     <script>
-        if (typeof window.jspdf === 'undefined') {
-            // Fallback logic if CDN fails (for offline usage reference)
-            console.warn("jsPDF not loaded from CDN");
-        }
+        // เช็คว่าโหลดไลบรารีสำเร็จไหม ถ้าไม่ (Offline) จะใช้โหมด Print แทน
+        window.isPdfLibLoaded = typeof window.jspdf !== 'undefined';
     </script>
 
     <style>
@@ -352,6 +350,45 @@
 
         .modal-confirm-btn { background-color: #e74c3c; color: white; }
         .modal-cancel-btn { background-color: #ecf0f1; color: var(--text-main); }
+
+        /* --- PRINT STYLES FOR OFFLINE OFFICE USE --- */
+        @media print {
+            body { 
+                background-color: white; 
+                color: black; 
+                padding: 0;
+            }
+            .container { 
+                box-shadow: none; 
+                border: none; 
+                width: 100%; 
+                max-width: 100%; 
+                padding: 0; 
+                margin: 0;
+            }
+            /* ซ่อนส่วนควบคุมเมื่อปริ้นท์ */
+            .audio-status-bar, 
+            .display-grid, 
+            .next-beep-box, 
+            .score-buttons-container, 
+            .progress-bar, 
+            .button-group, 
+            #status-text, 
+            .modal-overlay,
+            .timer-display,
+            .score-display,
+            .control-row {
+                display: none !important;
+            }
+            
+            /* จัดรูปแบบส่วนหัวและผลลัพธ์ */
+            h1 { font-size: 24px; margin-bottom: 10px; color: black; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .saved-results-container { margin-top: 0; background-color: white; padding: 0; }
+            .results-title { color: black; font-size: 18px; border-bottom: 1px solid #000; margin-top: 20px; }
+            .results-list li { border-bottom: 1px solid #ccc; page-break-inside: avoid; }
+            .runner-id { color: #000; }
+            .runner-score-detail { color: #333; }
+        }
     </style>
 </head>
 <body>
@@ -409,15 +446,13 @@
         <div class="progress-bar">
             <div class="progress-fill" id="progress-fill"></div>
         </div>
-
-        <!-- ลบส่วน Checkbox รวมผลออกแล้ว -->
         
         <div class="button-group">
             <button id="start-btn" class="action-btn" onclick="startTest()">START TEST</button>
             <button id="pause-btn" class="action-btn" onclick="togglePause()" style="display: none; background-color: var(--pause-color);">PAUSE</button>
             <button id="next-set-btn" class="action-btn end-set-btn" onclick="finishTestAndAdvance()" style="display: none;">▶️ เริ่มชุดต่อไป (Manual)</button>
             <button id="reset-btn" class="action-btn" onclick="resetTest()" style="display: none; background-color: #e74c3c;">RESET ALL</button>
-            <button id="pdf-export-btn" class="action-btn" onclick="exportToPDF()" style="display: none;">⬇️ ส่งออกเป็น PDF</button>
+            <button id="pdf-export-btn" class="action-btn" onclick="handleExport()" style="display: none;">⬇️ ส่งออกเป็น PDF / Print</button>
         </div>
         
         <div class="saved-results-container">
@@ -486,7 +521,7 @@
             });
         }
 
-        // 500Hz Beep
+        // 500Hz Beep (Middle frequency)
         function playTone(duration = 0.7, freq = 500) {
             if (!audioCtx) initAudio();
             if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') {
@@ -502,8 +537,9 @@
             osc.type = 'sine'; 
             osc.frequency.value = freq;
             
+            // เพิ่มความดังเป็น 1.0 (จากเดิม 0.5) = 200%
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.05); 
             gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
 
             osc.start();
@@ -568,7 +604,6 @@
             { level: 21, shuttles: 15, seconds: 3.89, speed: 18.5, cumulative: 237 }
         ];
 
-        // --- Core UI Logic ---
         function closeModal() {
             document.getElementById('custom-modal').style.display = 'none';
             document.getElementById('modal-input').style.display = 'none';
@@ -788,7 +823,6 @@
             const list = document.getElementById('saved-results-list');
             list.innerHTML = '';
             
-            // Sort by Timestamp
             let items = Object.values(testSets.data).sort((a,b) => {
                 if(a.set !== b.set) return a.set - b.set;
                 return a.timestamp - b.timestamp;
@@ -839,7 +873,6 @@
             document.getElementById('pause-btn').style.display = isRunning || isPaused ? 'inline-block' : 'none';
             document.getElementById('reset-btn').style.display = (isRunning || isPaused || hasData) ? 'inline-block' : 'none';
             document.getElementById('pdf-export-btn').style.display = hasData ? 'inline-block' : 'none';
-            // Removed export options toggle
             document.getElementById('next-set-btn').style.display = (isRunning || isPaused) ? 'inline-block' : 'none';
         }
 
@@ -872,20 +905,24 @@
             finishTest(true);
         }
 
-        function exportToPDF() {
+        // ฟังก์ชัน Export ที่ฉลาดขึ้น: เลือก PDF (ถ้ามีเน็ต) หรือ Print (ถ้า Offline)
+        function handleExport() {
             if (typeof window.jspdf === 'undefined') {
-                 showModal('❌ Error', 'jsPDF Library not loaded. Check internet.', true);
-                 return;
+                // Offline Mode: ใช้ window.print()
+                window.print();
+            } else {
+                // Online Mode: สร้าง PDF สวยๆ
+                exportToPDF();
             }
+        }
+
+        function exportToPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            const exportAll = true; // Default to always export all sets
+            const exportAll = true; // บังคับรวมทุกชุดเสมอ
             
             const dateObj = new Date();
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            const today = `${day}-${month}-${year}`;
+            const today = `${String(dateObj.getDate()).padStart(2,'0')}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${dateObj.getFullYear()}`;
             
             doc.setFont("Helvetica", "bold");
             doc.text("20m-SRT Test Results", 14, 20);
@@ -921,8 +958,7 @@
                 y += 7;
             });
 
-            let filename = `PACER_AllSets_${today}.pdf`;
-            doc.save(filename);
+            doc.save(`PACER_AllSets_${today}.pdf`);
         }
 
         function changeSet(val) {
